@@ -10,6 +10,9 @@ module memo::memo_pool {
     /// For when Coin balance is too low.
     const ENotEnough: u64 = 0;
 
+    /// For when hash size is not correct
+    const EHashSizeNotCorrect: u64 = 1;
+
     /// Capability that grants an owner the right to withdrawal.
     struct PoolOwnerCap has key { id: UID }
 
@@ -148,11 +151,16 @@ module memo::memo_pool {
         ctx: &mut TxContext
     ) {
         assert!(payment.value >= amount, ENotEnough);
+        assert!(vector::len(hash) == 32, EHashSizeNotCorrect);
 
         let paid = balance::split(&mut pool.locked_balance, amount);
         balance::join(&mut pool.unlocked_balance, paid);
 
         payment.value = payment.value - amount;
+        if(payment.value == 0) {
+            let MemoCash { id, value} = payment;
+            object::delete(id);
+        }
 
         event::emit(Prepay {sender: tx_context::sender(ctx), amount: amount, size: size, hash: hash})
     }
