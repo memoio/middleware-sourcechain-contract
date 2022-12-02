@@ -35,27 +35,46 @@ module memo::memo_pool {
 
         transfer::share_object(MemoPool {
             id: object::new(ctx),
-            locked_balance: balance::zero(), 
-            unlocked_balance: balance::zero()
+            balance: balance::zero()
         })
     }
 
     // ====== MemoPool Entrypoints ======
 
-    /// Deposit sui into memo pool and lock sui.
-    /// mint memocash and transfer memocash to sender
+    /// Deposit sui into memo pool and emit deposit event.
+    /// transfer memo into sender on the memo chain
     public entry fun deposit(
         pool: &mut MemoPool, 
         payment: &mut Coin<SUI>, 
         amount: u64, 
-        memo_address: address, 
         ctx: &mut TxContext
     ) {
         assert!(coin::value(payment) >= amount, ENotEnough);
 
         let coin_balance = coin::balance_mut(payment);
         let paid = balance::split(coin_balance, amount);
-        let id = object::new(ctx);
+
+        balance::join(&mut pool.balance, paid);
+
+        // Emit the event.
+        event::emit(Deposit {  
+            sender: tx_context::sender(ctx), 
+            amount: amount});
+    }
+
+    /// Deposit sui into memo pool and emit deposit event.
+    /// transfer memo into memo address on the memo chain
+    public entry fun deposit_with_address(
+        pool: &mut MemoPool, 
+        payment: &mut Coin<SUI>, 
+        amount: u64, 
+        memo_address: address, 
+        _ctx: &mut TxContext
+    ) {
+        assert!(coin::value(payment) >= amount, ENotEnough);
+
+        let coin_balance = coin::balance_mut(payment);
+        let paid = balance::split(coin_balance, amount);
 
         balance::join(&mut pool.balance, paid);
 
